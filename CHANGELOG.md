@@ -1,5 +1,10 @@
 # Release Notes
 
+## 1.0.2 - 2026-07-27
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+**Full Changelog**: https://github.com/SupportKBZ/laravel-salesforce/compare/1.0.1...1.0.2
+
 ## 1.0.1 - 2026-07-27
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->
