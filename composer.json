@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "kandbaz/laravel-salesforce",
+    "name": "supportkbz/laravel-salesforce",
     "description": "Package CRUD connexion with Salesforce",
     "keywords": [
         "laravel",
