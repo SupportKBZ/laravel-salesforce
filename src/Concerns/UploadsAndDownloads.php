@@ -62,7 +62,7 @@ trait UploadsAndDownloads
             'PathOnClient' => $fileName,
             'ContentLocation' => 'S',
             'VersionData' => base64_encode((string) file_get_contents($pathFile)),
-            'OwnerId' => config('salesforce.owner_id'),
+            'OwnerId' => $this->getOwnerId(),
         ]);
 
         if (empty($versionFile['id'])) {

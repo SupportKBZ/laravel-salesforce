@@ -20,6 +20,9 @@ trait Authenticates
     /** @var array<string, mixed> Identifiants API Salesforce */
     private array $apiCredentials = [];
 
+    /** @var array<string, mixed> Options brutes (ex: Tool->options) */
+    private array $credentialOptions = [];
+
     /** @var bool Indique si une tentative de re-authentification est en cours */
     private bool $retry = false;
 
@@ -27,9 +30,27 @@ trait Authenticates
     private ?TokenCache $tokenCache = null;
 
     /**
+     * Cree une instance authentifiee a partir d'options (ex: Tool->options).
+     *
+     * Cles acceptees (aliases Tool / config) :
+     * - login_url|url → instance_url
+     * - key|consumer_key → consumer_key
+     * - secret|consumer_secret → consumer_secret
+     * - username, password, version
+     * - owner_id|owner_file → owner_id (uploads)
+     * - tool_identifier → suffixe de cache (isole les tokens par outil)
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public static function auth(array $options): static
+    {
+        return new static($options);
+    }
+
+    /**
      * Authentifie l'instance aupres de Salesforce (via cache ou password grant).
      */
-    public function auth(): static
+    public function authenticate(): static
     {
         $auth = $this->tokenCache()->get();
 
@@ -111,22 +132,66 @@ trait Authenticates
     }
 
     /**
-     * Charge les identifiants Salesforce depuis la configuration.
+     * Retourne les options de credentials (ex: Tool->options).
+     *
+     * @return array<string, mixed>
      */
-    private function setCredentials(): static
+    public function getCredentialOptions(): array
     {
+        return $this->credentialOptions;
+    }
+
+    /**
+     * Retourne l'OwnerId pour les uploads ContentVersion.
+     */
+    public function getOwnerId(): ?string
+    {
+        $owner = $this->credentialOptions['owner_id']
+            ?? $this->credentialOptions['owner_file']
+            ?? config('salesforce.owner_id');
+
+        return $owner !== null && $owner !== '' ? (string) $owner : null;
+    }
+
+    /**
+     * Charge les identifiants Salesforce depuis les options et/ou la config.
+     *
+     * @param  array<string, mixed>|null  $options  Options Tool ou null pour la config.
+     */
+    private function setCredentials(?array $options = null): static
+    {
+        $this->credentialOptions = $options ?? [];
+
         $this->apiCredentials = [
-            'instance_url' => config('salesforce.url'),
-            'consumer_key' => config('salesforce.consumer_key'),
-            'consumer_secret' => config('salesforce.consumer_secret'),
-            'username' => config('salesforce.username'),
-            'password' => config('salesforce.password'),
-            'version' => config('salesforce.version'),
+            'instance_url' => $options['login_url'] ?? $options['url'] ?? config('salesforce.url'),
+            'consumer_key' => $options['key'] ?? $options['consumer_key'] ?? config('salesforce.consumer_key'),
+            'consumer_secret' => $options['secret'] ?? $options['consumer_secret'] ?? config('salesforce.consumer_secret'),
+            'username' => $options['username'] ?? config('salesforce.username'),
+            'password' => $options['password'] ?? config('salesforce.password'),
+            'version' => $options['version'] ?? config('salesforce.version'),
         ];
 
-        $this->tokenCache = TokenCacheFactory::make();
+        $cacheSuffix = isset($options['tool_identifier'])
+            ? (string) $options['tool_identifier']
+            : null;
+
+        $this->tokenCache = TokenCacheFactory::make($cacheSuffix);
 
         return $this;
+    }
+
+    /**
+     * Copie l'etat d'authentification d'une autre instance (hydratation des records).
+     *
+     * @param  static  $source
+     */
+    private function copyAuthenticationFrom(self $source): void
+    {
+        $this->access = $source->access;
+        $this->apiCredentials = $source->apiCredentials;
+        $this->credentialOptions = $source->credentialOptions;
+        $this->tokenCache = $source->tokenCache;
+        $this->retry = false;
     }
 
     /**
@@ -144,7 +209,7 @@ trait Authenticates
     {
         $this->retry = true;
         $this->tokenCache()->forget();
-        $this->auth();
+        $this->authenticate();
 
         return $this;
     }

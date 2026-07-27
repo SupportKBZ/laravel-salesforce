@@ -2,29 +2,74 @@
 
 declare(strict_types=1);
 
-namespace SupportKBZ\SObject\Contracts;
+namespace SupportKBZ\SObject\Cache;
+
+use InvalidArgumentException;
+use SupportKBZ\SObject\Contracts\TokenCache;
 
 /**
- * Contrat de persistence du token OAuth Salesforce.
+ * Fabrique le driver de cache du token selon la configuration.
  */
-interface TokenCache
+class TokenCacheFactory
 {
     /**
-     * Recupere le token OAuth depuis le cache.
+     * Cree l'implementation de TokenCache selon salesforce.cache.driver.
      *
-     * @return array<string, mixed>
+     * - `file`    : fichier local (file_put_contents + Crypt)
+     * - `default` : Cache Laravel (driver defini par CACHE_DRIVER)
+     *
+     * @param  string|null  $suffix  Suffixe optionnel (ex: tool_identifier) pour isoler les tokens.
+     *
+     * @throws InvalidArgumentException
      */
-    public function get(): array;
+    public static function make(?string $suffix = null): TokenCache
+    {
+        $driver = (string) config('salesforce.cache.driver', 'default');
+
+        return match ($driver) {
+            'file' => new FileTokenCache(self::resolveFilePath($suffix)),
+            'default' => new LaravelTokenCache(self::resolveCacheKey($suffix)),
+            default => throw new InvalidArgumentException(
+                "Driver de cache Salesforce invalide [{$driver}]. Utilise `file` ou `default`.",
+            ),
+        };
+    }
 
     /**
-     * Persiste le token OAuth dans le cache.
+     * Resolue le chemin du fichier de cache (mode file).
      *
-     * @param  array<string, mixed>  $token
+     * @param  string|null  $suffix
      */
-    public function put(array $token): void;
+    public static function resolveFilePath(?string $suffix = null): string
+    {
+        $configuredPath = config('salesforce.cache.path');
+        $directory = $configuredPath
+            ? rtrim((string) $configuredPath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR
+            : storage_path('cache'.DIRECTORY_SEPARATOR);
+
+        $name = 'sf_token_'.config('app.env');
+        if ($suffix !== null && $suffix !== '') {
+            $name .= '_'.$suffix;
+        }
+
+        return $directory.$name.'.json';
+    }
 
     /**
-     * Supprime le token OAuth du cache.
+     * Resolue la cle de cache Laravel (mode default).
+     *
+     * @param  string|null  $suffix
      */
-    public function forget(): void;
+    public static function resolveCacheKey(?string $suffix = null): string
+    {
+        $configuredKey = config('salesforce.cache.key');
+
+        if (is_string($configuredKey) && $configuredKey !== '') {
+            return $suffix ? $configuredKey.'.'.$suffix : $configuredKey;
+        }
+
+        $key = 'salesforce.oauth_token.'.config('app.env');
+
+        return $suffix ? $key.'.'.$suffix : $key;
+    }
 }

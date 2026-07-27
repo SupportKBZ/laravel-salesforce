@@ -62,11 +62,18 @@ class SObject implements Arrayable
 
     /**
      * Initialise les credentials et authentifie l'instance.
+     *
+     * @param  array<string, mixed>|null  $options  Options Tool (ou null = config/env).
+     * @param  bool  $authenticate  Si false, saute l'appel OAuth (hydratation interne).
      */
-    public function __construct()
+    public function __construct(?array $options = null, bool $authenticate = true)
     {
         $this->throwOnError = (bool) config('app.debug');
-        $this->setCredentials()->auth();
+        $this->setCredentials($options);
+
+        if ($authenticate) {
+            $this->authenticate();
+        }
     }
 
     /**
@@ -402,7 +409,8 @@ class SObject implements Arrayable
 
         return collect($records)->map(function (array $record) use ($className) {
             /** @var static $class */
-            $class = new $className;
+            $class = new $className($this->getCredentialOptions() ?: null, false);
+            $class->copyAuthenticationFrom($this);
 
             // Get data from record
             foreach ($class->fillable as $fillable) {
