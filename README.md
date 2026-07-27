@@ -15,7 +15,7 @@ Package CRUD pour interagir avec Salesforce via des classes sObject Eloquent-lik
 ## Installation
 
 ```bash
-composer require kandbaz/laravel-salesforce
+composer require supportkbz/laravel-salesforce
 ```
 
 Publie la configuration :
