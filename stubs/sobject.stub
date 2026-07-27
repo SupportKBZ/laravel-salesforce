@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use SupportKBZ\SObject\SObject;
+
+class {{ class }} extends SObject
+{
+    /** @var string Nom de l'objet Salesforce cible */
+    protected string $table = '{{ table }}';
+
+    /** @var string[] Champs autorises en lecture/ecriture */
+    protected array $fillable = [
+        'Id',
+    ];
+
+    /** @var array<string, string> Correspondance champ Salesforce → nom mappe */
+    protected array $map = [
+        'Id' => 'id',
+    ];
+}
